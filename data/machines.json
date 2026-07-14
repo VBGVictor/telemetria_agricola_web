@@ -1,0 +1,98 @@
+[
+  {
+    "code": "6001",
+    "name": "Colhedora 6001",
+    "type": "colhedora",
+    "model": "CH570",
+    "brand": "John Deere",
+    "year": 2021
+  },
+  {
+    "code": "6002",
+    "name": "Colhedora 6002",
+    "type": "colhedora",
+    "model": "CH570",
+    "brand": "John Deere",
+    "year": 2022
+  },
+  {
+    "code": "6003",
+    "name": "Colhedora 6003",
+    "type": "colhedora",
+    "model": "A8800",
+    "brand": "Case IH",
+    "year": 2020
+  },
+  {
+    "code": "6004",
+    "name": "Colhedora 6004",
+    "type": "colhedora",
+    "model": "A8810",
+    "brand": "Case IH",
+    "year": 2023
+  },
+  {
+    "code": "7001",
+    "name": "Trator 7001",
+    "type": "trator",
+    "model": "8R 340",
+    "brand": "John Deere",
+    "year": 2022
+  },
+  {
+    "code": "7002",
+    "name": "Trator 7002",
+    "type": "trator",
+    "model": "Magnum 340",
+    "brand": "Case IH",
+    "year": 2021
+  },
+  {
+    "code": "7003",
+    "name": "Trator 7003",
+    "type": "trator",
+    "model": "T8.410",
+    "brand": "New Holland",
+    "year": 2019
+  },
+  {
+    "code": "8001",
+    "name": "Caminhão 8001",
+    "type": "caminhao",
+    "model": "Actros 2651",
+    "brand": "Mercedes-Benz",
+    "year": 2020
+  },
+  {
+    "code": "8002",
+    "name": "Caminhão 8002",
+    "type": "caminhao",
+    "model": "Actros 2651",
+    "brand": "Mercedes-Benz",
+    "year": 2020
+  },
+  {
+    "code": "8003",
+    "name": "Caminhão 8003",
+    "type": "caminhao",
+    "model": "FH 540",
+    "brand": "Volvo",
+    "year": 2022
+  },
+  {
+    "code": "8004",
+    "name": "Caminhão 8004",
+    "type": "caminhao",
+    "model": "FH 540",
+    "brand": "Volvo",
+    "year": 2023
+  },
+  {
+    "code": "8005",
+    "name": "Caminhão 8005",
+    "type": "caminhao",
+    "model": "R 500",
+    "brand": "Scania",
+    "year": 2021
+  }
+]
