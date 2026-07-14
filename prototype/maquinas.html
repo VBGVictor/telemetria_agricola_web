@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Protótipo — Máquinas · Analitica Frota</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --surface: #fcfcfb; --page: #f9f9f7;
+    --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+    --grid: #e1e0d9; --border: rgba(11,11,11,0.10);
+    --primary: #0b0b0b;
+    --good: #006300; --warn-bg: #fdf3dc; --warn-ink: #7a5800;
+    --crit: #d03b3b; --crit-bg: #fbe9e9;
+    --good-bg: #e7f3e7;
+  }
+  body { background: var(--page); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color: inherit; text-decoration: none; }
+  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; gap: 24px; height: 56px; position: sticky; top: 0; z-index: 10; }
+  .brand { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
+  .brand span { color: var(--muted); font-weight: 400; }
+  nav { display: flex; gap: 4px; }
+  nav a { padding: 6px 12px; border-radius: 8px; color: var(--ink-2); font-weight: 500; }
+  nav a:hover { background: rgba(11,11,11,0.05); }
+  nav a.active { background: rgba(11,11,11,0.07); color: var(--ink); }
+  .container { max-width: 1120px; margin: 0 auto; padding: 24px; display: grid; gap: 16px; }
+  .page-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  h1 { font-size: 20px; letter-spacing: -0.02em; }
+  .subtitle { color: var(--muted); font-size: 13px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+  .card-head { padding: 16px 20px 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .card-title { font-size: 14px; font-weight: 600; }
+  .card-desc { color: var(--muted); font-size: 12.5px; }
+  .card-body { padding: 16px 20px 20px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 7px 14px; font: inherit; font-weight: 500; font-size: 13.5px; cursor: pointer; color: var(--ink); }
+  .btn:hover { background: rgba(11,11,11,0.04); }
+  .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .btn-primary:hover { background: #2b2b2b; }
+  .btn-danger-ghost { color: var(--crit); border-color: transparent; }
+  .btn-danger-ghost:hover { background: var(--crit-bg); }
+  .input, .select { border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 13.5px; background: var(--surface); color: var(--ink); min-width: 200px; }
+  .input::placeholder { color: var(--muted); }
+  .select { min-width: 150px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: left; color: var(--muted); font-weight: 500; font-size: 12px; padding: 10px 12px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: rgba(11,11,11,0.02); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .badge { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 500; border: 1px solid var(--border); color: var(--ink-2); background: rgba(11,11,11,0.03); }
+  .pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .pill-good { background: var(--good-bg); color: var(--good); }
+  .pill-warn { background: var(--warn-bg); color: var(--warn-ink); }
+  .pill-crit { background: var(--crit-bg); color: var(--crit); }
+  .footer-note { color: var(--muted); font-size: 12px; text-align: center; padding-bottom: 24px; }
+
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .toolbar .spacer { flex: 1; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(11,11,11,0.45); z-index: 50; }
+  .modal-overlay:target { display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .modal { background: var(--surface); border-radius: 14px; border: 1px solid var(--border); width: 480px; max-width: 100%; padding: 22px; }
+  .modal h2 { font-size: 16px; letter-spacing: -0.01em; }
+  .modal .desc { color: var(--muted); font-size: 12.5px; margin: 2px 0 16px; }
+  .field { display: grid; gap: 5px; margin-bottom: 13px; }
+  .field label { font-size: 13px; font-weight: 500; }
+  .field .input, .field .select { width: 100%; min-width: 0; }
+  .field.error .input { border-color: var(--crit); }
+  .field .error-msg { color: var(--crit); font-size: 12px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+</style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">🚜 Analitica <span>· Frota</span></div>
+    <nav>
+      <a href="dashboard.html" class="">Dashboard</a>
+      <a href="maquinas.html" class="active">Máquinas</a>
+    </nav>
+  </header>
+<div class="container">
+  <div class="page-head">
+    <div>
+      <h1>Máquinas</h1>
+      <div class="subtitle">Cadastro da frota — 12 máquinas</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="toolbar" style="width:100%">
+        <input class="input" type="search" placeholder="Buscar por nome ou código...">
+        <select class="select" aria-label="Filtrar por tipo">
+          <option>Todos os tipos</option>
+          <option>Colhedora</option>
+          <option>Trator</option>
+          <option>Caminhão</option>
+        </select>
+        <div class="spacer"></div>
+        <a class="btn btn-primary" href="#nova-maquina">+ Nova máquina</a>
+      </div>
+    </div>
+    <div class="card-body" style="overflow-x:auto"><table>
+    <thead><tr><th>Código</th><th>Nome</th><th>Tipo</th><th>Modelo</th><th>Marca</th><th class="num">Ano</th><th style="text-align:right">Ações</th></tr></thead>
+    <tbody><tr>
+      <td><strong>6001</strong></td>
+      <td>Colhedora 6001</td>
+      <td><span class="badge">Colhedora</span></td>
+      <td>CH570</td>
+      <td>John Deere</td>
+      <td class="num">2021</td>
+      <td style="text-align:right"><a class="btn" style="padding:4px 10px" href="#editar-maquina">Editar</a> <a class="btn btn-danger-ghost" style="padding:4px 10px" href="#">Excluir</a></td>
+    </tr>
+<tr>
+      <td><strong>6002</strong></td>
+      <td>Colhedora 6002</td>
+      <td><span class="badge">Colhedora</span></td>
+      <td>CH570</td>
+      <td>John Deere</td>
+      <td class="num">2022</td>
+      <td style="text-align:right"><a class="btn" style="padding:4px 10px" href="#editar-maquina">Editar</a> <a class="btn btn-danger-ghost" style="padding:4px 10px" href="#">Excluir</a></td>
+    </tr>
+<tr>
+      <td><strong>6003</strong></td>
+      <td>Colhedora 6003</td>
+      <td><span class="badge">Colhedora</span></td>
+      <td>A8800</td>
+      <td>Case IH</td>
+      <td class="num">2020</td>
+      <td style="text-align:right"><a class="btn" style="padding:4px 10px" href="#editar-maquina">Editar</a> <a class="btn btn-danger-ghost" style="padding:4px 10px" href="#">Excluir</a></td>
+    </tr>
+<tr>
+      <td><strong>6004</strong></td>
+      <td>Colhedora 6004</td>
+      <td><span class="badge">Colhedora</span></td>
+      <td>A8810</td>
+      <td>Case IH</td>
+      <td class="num">2023</td>
+      <td style="text-align:right"><a class="btn" style="padding:4px 10px" href="#editar-maquina">Editar</a> <a class="btn btn-danger-ghost" style="padding:4px 10px" href="#">Excluir</a></td>
+    </tr>
+<tr>
+      <td><strong>7001</strong></td>
+      <td>Trator 7001</td>
+      <td><span class="badge">Trator</span></td>
+      <td>8R 340</td>
+      <td>John Deere</td>
+      <td class="num">2022</td>
+      <td style="text-align:right"><a class="btn" style="padding:4px 10px" href="#editar-maquina">Editar</a> <a class="btn btn-danger-ghost" style="padding:4px 10px" href="#">Excluir</a></td>
+    </tr>
+<tr>
+      <td><strong>7002</strong></td>
+      <td>Trator 7002</td>
+      <td><span class="badge">Trator</span></td>
+      <td>Magnum 340</td>
+      <td>Case IH</td>
+      <td class="num">2021</td>
+      <td style="text-align:right"><a class="btn" style="padding:4px 10px" href="#editar-maquina">Editar</a> <a class="btn btn-danger-ghost" style="padding:4px 10px" href="#">Excluir</a></td>
+    </tr>
+<tr>
+      <td><strong>7003</strong></td>
+      <td>Trator 7003</td>
+      <td><span class="badge">Trator</span></td>
+      <td>T8.410</td>
+      <td>New Holland</td>
+      <td class="num">2019</td>
+      <td style="text-align:right"><a class="btn" style="padding:4px 10px" href="#editar-maquina">Editar</a> <a class="btn btn-danger-ghost" style="padding:4px 10px" href="#">Excluir</a></td>
+    </tr>
+<tr>
+      <td><strong>8001</strong></td>
+      <td>Caminhão 8001</td>
+      <td><span class="badge">Caminhão</span></td>
+      <td>Actros 2651</td>
+      <td>Mercedes-Benz</td>
+      <td class="num">2020</td>
+      <td style="text-align:right"><a class="btn" style="padding:4px 10px" href="#editar-maquina">Editar</a> <a class="btn btn-danger-ghost" style="padding:4px 10px" href="#">Excluir</a></td>
+    </tr>
+<tr>
+      <td><strong>8002</strong></td>
+      <td>Caminhão 8002</td>
+      <td><span class="badge">Caminhão</span></td>
+      <td>Actros 2651</td>
+      <td>Mercedes-Benz</td>
+      <td class="num">2020</td>
+      <td style="text-align:right"><a class="btn" style="padding:4px 10px" href="#editar-maquina">Editar</a> <a class="btn btn-danger-ghost" style="padding:4px 10px" href="#">Excluir</a></td>
+    </tr>
+<tr>
+      <td><strong>8003</strong></td>
+      <td>Caminhão 8003</td>
+      <td><span class="badge">Caminhão</span></td>
+      <td>FH 540</td>
+      <td>Volvo</td>
+      <td class="num">2022</td>
+      <td style="text-align:right"><a class="btn" style="padding:4px 10px" href="#editar-maquina">Editar</a> <a class="btn btn-danger-ghost" style="padding:4px 10px" href="#">Excluir</a></td>
+    </tr>
+<tr>
+      <td><strong>8004</strong></td>
+      <td>Caminhão 8004</td>
+      <td><span class="badge">Caminhão</span></td>
+      <td>FH 540</td>
+      <td>Volvo</td>
+      <td class="num">2023</td>
+      <td style="text-align:right"><a class="btn" style="padding:4px 10px" href="#editar-maquina">Editar</a> <a class="btn btn-danger-ghost" style="padding:4px 10px" href="#">Excluir</a></td>
+    </tr>
+<tr>
+      <td><strong>8005</strong></td>
+      <td>Caminhão 8005</td>
+      <td><span class="badge">Caminhão</span></td>
+      <td>R 500</td>
+      <td>Scania</td>
+      <td class="num">2021</td>
+      <td style="text-align:right"><a class="btn" style="padding:4px 10px" href="#editar-maquina">Editar</a> <a class="btn btn-danger-ghost" style="padding:4px 10px" href="#">Excluir</a></td>
+    </tr></tbody>
+  </table>
+    </div>
+  </div>
+
+  <div class="footer-note">Protótipo de referência — "Nova máquina" e "Editar" abrem o modal (mock estático, sem JS).</div>
+</div>
+
+<div class="modal-overlay" id="nova-maquina">
+  <div class="modal">
+    <h2>Nova máquina</h2>
+    <div class="desc">Preencha os dados da máquina. Validação espelhada no backend (Zod).</div>
+    <div class="field error">
+      <label>Código *</label>
+      <input class="input" value="">
+      <span class="error-msg">Código é obrigatório</span>
+    </div>
+    <div class="field">
+      <label>Nome *</label>
+      <input class="input" placeholder="Ex.: Colhedora 6005">
+    </div>
+    <div class="grid-2">
+      <div class="field">
+        <label>Tipo *</label>
+        <select class="select"><option>Colhedora</option><option>Trator</option><option>Caminhão</option></select>
+      </div>
+      <div class="field">
+        <label>Ano *</label>
+        <input class="input" placeholder="2024">
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="field">
+        <label>Modelo *</label>
+        <input class="input" placeholder="Ex.: CH570">
+      </div>
+      <div class="field">
+        <label>Marca *</label>
+        <input class="input" placeholder="Ex.: John Deere">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <a class="btn" href="#">Cancelar</a>
+      <a class="btn btn-primary" href="#">Salvar</a>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editar-maquina">
+  <div class="modal">
+    <h2>Editar máquina</h2>
+    <div class="desc">Os campos vêm preenchidos com os dados atuais.</div>
+    <div class="field">
+      <label>Código *</label>
+      <input class="input" value="6001">
+    </div>
+    <div class="field">
+      <label>Nome *</label>
+      <input class="input" value="Colhedora 6001">
+    </div>
+    <div class="grid-2">
+      <div class="field">
+        <label>Tipo *</label>
+        <select class="select"><option>Colhedora</option><option>Trator</option><option>Caminhão</option></select>
+      </div>
+      <div class="field">
+        <label>Ano *</label>
+        <input class="input" value="2021">
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="field">
+        <label>Modelo *</label>
+        <input class="input" value="CH570">
+      </div>
+      <div class="field">
+        <label>Marca *</label>
+        <input class="input" value="John Deere">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <a class="btn" href="#">Cancelar</a>
+      <a class="btn btn-primary" href="#">Salvar</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

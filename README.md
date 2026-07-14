@@ -68,6 +68,15 @@ pronto para uso (`docker compose up -d`). Biblioteca de gráficos é de livre es
 
 ### Parte 2 — Frontend
 
+> 🎨 **Protótipo de referência**: em [`prototype/`](prototype/) há um protótipo
+> estático das duas telas ([dashboard](prototype/dashboard.html) e
+> [máquinas](prototype/maquinas.html), com modal de criação/edição) — HTML puro,
+> abra direto no navegador. É a referência visual do que esperamos: não precisa
+> ser pixel-perfect, mas a estrutura (cards de KPI, gráfico de barras empilhadas
+> com legenda e tooltip, tabela de indicadores, modal com estado de erro de
+> validação) deve estar lá. Os números do protótipo são ilustrativos — os seus
+> podem variar conforme suas decisões de tratamento dos dados.
+
 1. **Tela de máquinas**: tabela com busca e filtro por tipo; criar/editar em
    modal/drawer com React Hook Form + Zod (validação espelhando a do backend);
    excluir com confirmação.
