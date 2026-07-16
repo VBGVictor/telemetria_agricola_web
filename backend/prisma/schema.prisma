@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MachineType {
+  COLHEDORA @map("colhedora")
+  TRATOR    @map("trator")
+  CAMINHAO  @map("caminhao")
+}
+
+enum EventGroup {
+  EFETIVO      @map("Efetivo")
+  MANOBRA      @map("Manobra")
+  DESLOCAMENTO @map("Deslocamento")
+  AGUARDANDO   @map("Aguardando")
+  MANUTENCAO   @map("Manutenção")
+}
+
+model Machine {
+  id        String      @id @default(uuid())
+  code      String      @unique
+  name      String
+  type      MachineType
+  model     String
+  brand     String
+  year      Int
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+  deletedAt DateTime?   @map("deleted_at")
+  events    Event[]
+
+  @@map("machines")
+}
+
+model Event {
+  id         String     @id
+  machineId  String     @map("machine_id")
+  machine    Machine    @relation(fields: [machineId], references: [id])
+  eventGroup EventGroup @map("event_group")
+  startTime  DateTime   @map("start_time")
+  endTime    DateTime?  @map("end_time")
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+  deletedAt  DateTime?  @map("deleted_at")
+
+  @@index([machineId, startTime])
+  @@map("events")
+}
