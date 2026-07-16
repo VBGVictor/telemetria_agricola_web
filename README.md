@@ -10,7 +10,7 @@ avaliação em [`AVALIACAO.md`](AVALIACAO.md).
 ## Status do projeto
 
 - [x] Fase 0 — repositório configurado, documentação inicial
-- [ ] Fase 1 — modelagem do banco de dados (Prisma)
+- [x] Fase 1 — modelagem do banco de dados (Prisma)
 - [ ] Fase 2 — seed com tratamento das imperfeições dos dados
 - [ ] Fase 3 — cálculo de indicadores + testes
 - [ ] Fase 4 — API (rotas / serviços / repositórios)
@@ -38,22 +38,41 @@ avaliação em [`AVALIACAO.md`](AVALIACAO.md).
 
 > ⚠️ Seção em construção 
 
-Hoje, o único componente pronto é o banco de dados:
-
 ```bash
+# 1. Banco de dados
 docker compose up -d
+
+# 2. Backend — instala dependências e aplica as migrations do Prisma
+cd backend
+npm install
+cp .env.example .env
+npx prisma migrate dev
 ```
 
-Isso sobe um PostgreSQL local em `localhost:5432` (usuário/senha/banco em
-[`docker-compose.yml`](docker-compose.yml)). Os passos de backend, seed e frontend serão
-adicionados aqui conforme cada fase for implementada.
+Isso sobe um PostgreSQL local em `localhost:5433` (usuário/senha/banco em
+[`docker-compose.yml`](docker-compose.yml)) e cria as tabelas do projeto. Os passos de seed e
+frontend serão adicionados aqui conforme cada fase for implementada.
 
 ## Arquitetura e decisões técnicas
 
-- **Banco de dados isolado em schema próprio**: as tabelas do projeto estarão no schema Postgres
-  `telemetria` (não no `public` padrão). O banco do `docker-compose.yml` é exclusivo e descartável, 
-  mas estou simulando a prática que seria adotada caso este projeto precisasse dividir um banco com 
+- **Banco de dados isolado em schema próprio**: as tabelas do projeto estão no schema Postgres
+  `telemetria` (não no `public` padrão). O banco do `docker-compose.yml` é exclusivo e descartável,
+  mas estou simulando a prática que seria adotada caso este projeto precisasse dividir um banco com
   outros sistemas da empresa, evitando colisão de nomes de tabelas com features de outros times.
+- **Chave interna (`id`) separada do código de negócio (`code`) em `Machine`**: o `id` é gerado
+  internamente (uuid) e nunca muda; o `code` é o identificador que já vem do cadastro (`"6001"`).
+  As rotas (`PUT /machines/:id`) usam o `id` interno, não o `code`.
+- **`Event.id` reaproveita o `id` original do JSON** (`"evt-01345"`) como chave primária, em vez de
+  gerar um novo. Isso faz o próprio banco recusar automaticamente uma tentativa de inserir o mesmo
+  evento duas vezes — uma segunda camada de proteção contra evento duplicado, além da limpeza feita
+  no código.
+- **`Event.machineId` referencia o `id` interno da máquina (chave estrangeira)**, não o `machineCode`
+  em texto livre. Consequência: o seed precisa resolver `machineCode → Machine.id` antes de inserir
+  um evento; se o código não existir no cadastro, a inserção falha — o banco reforça sozinho a regra
+  de "sem máquina fantasma".
+- **`Event.endTime` é opcional (nulo permitido)**: o banco guarda o dado exatamente como ele chega,
+  inclusive quando o evento ainda está em aberto. O tratamento desse caso (limitar ao período
+  consultado) acontece no cálculo do `/summary`, não altera o dado de origem.
 - *(demais decisões de arquitetura serão documentadas aqui conforme cada fase avança)*
 
 ## Tratamento dos dados imperfeitos
