@@ -11,7 +11,7 @@ avaliação em [`AVALIACAO.md`](AVALIACAO.md).
 
 - [x] Fase 0 — repositório configurado, documentação inicial
 - [x] Fase 1 — modelagem do banco de dados (Prisma)
-- [ ] Fase 2 — seed com tratamento das imperfeições dos dados
+- [x] Fase 2 — seed com tratamento das imperfeições dos dados
 - [ ] Fase 3 — cálculo de indicadores + testes
 - [ ] Fase 4 — API (rotas / serviços / repositórios)
 - [ ] Fase 5 — frontend (dashboard + tela de máquinas)
@@ -50,8 +50,20 @@ npx prisma migrate dev
 ```
 
 Isso sobe um PostgreSQL local em `localhost:5433` (usuário/senha/banco em
-[`docker-compose.yml`](docker-compose.yml)) e cria as tabelas do projeto. Os passos de seed e
-frontend serão adicionados aqui conforme cada fase for implementada.
+[`docker-compose.yml`](docker-compose.yml)) e cria as tabelas do projeto.
+
+```bash
+# 3. Seed — limpa os dados de data/ e importa pro banco
+npx prisma db seed
+```
+
+O seed imprime um relatório no terminal (quantos eventos foram lidos, quantos descartados/corrigidos
+e por quê).
+
+```bash
+# 4. Testes — não precisa de banco rodando, é tudo isolado
+npm test
+```
 
 ## Arquitetura e decisões técnicas
 
@@ -73,23 +85,48 @@ frontend serão adicionados aqui conforme cada fase for implementada.
 - **`Event.endTime` é opcional (nulo permitido)**: o banco guarda o dado exatamente como ele chega,
   inclusive quando o evento ainda está em aberto. O tratamento desse caso (limitar ao período
   consultado) acontece no cálculo do `/summary`, não altera o dado de origem.
+- **`@map` nos valores de enum**: os nomes usados no código (`MANUTENCAO`, sem acento) são diferentes
+  do valor gravado no banco (`Manutenção`, com acento) porque o Prisma não aceita caractere acentuado
+  em nome de enum — é regra de sintaxe, não escolha estética. O `@map` garante que o valor salvo bate
+  exatamente com o dado original do JSON.
+- **Resolução de `machineCode → machineId` com carregamento único**: as 12 máquinas são carregadas numa
+  única consulta e guardadas em memória (`Map`) antes de resolver os eventos, evitando uma consulta ao
+  banco por evento (problema N+1). Funciona bem nessa escala; com uma tabela de máquinas muito maior,
+  a estratégia poderia mudar para um `JOIN` feito direto no banco (via tabela de staging) ou um cache
+  limitado, em vez de carregar tudo de uma vez.
+- **Validação Zod na leitura do JSON bruto**: antes de qualquer limpeza, o formato dos arquivos em
+  `data/` é validado — é uma fronteira com dado externo, então falha aqui, com mensagem clara, se o
+  arquivo vier num formato inesperado.
+- **Seed idempotente**: o script limpa (`deleteMany`) as tabelas antes de inserir de novo. Rodar o seed
+  várias vezes sempre resulta no mesmo estado, sem duplicar nem acumular dado de execuções antigas.
 - *(demais decisões de arquitetura serão documentadas aqui conforme cada fase avança)*
 
 ## Tratamento dos dados imperfeitos
 
 Os dados em [`data/events.json`](data/events.json) contêm, de propósito, imperfeições típicas de
-telemetria de campo. A tabela abaixo vai sendo preenchida **conforme cada imperfeição é encontrada
-e tratada** no código (função de limpeza + testes da Fase 2/3) — a contagem que aparece
-aqui é sempre a que sai rodando `yarn test`.
+telemetria de campo. A contagem abaixo vem do teste
+[`clean-events.test.ts`](backend/src/data-cleaning/clean-events.test.ts) — roda `npm test` dentro de
+`backend/` pra conferir.
 
 | Imperfeição | O que caracteriza | Quantas vezes apareceu | Decisão | Por quê |
 | --- | --- | --- | --- | --- |
-| Evento duplicado | Mesmo `id`, payload idêntico repetido no dataset | _[a preencher]_ | _[a preencher]_ | _[a preencher]_ |
-| Máquina fantasma | `machineCode` do evento não existe no cadastro de máquinas | _[a preencher]_ | _[a preencher]_ | _[a preencher]_ |
-| Horário invertido | `startTime` posterior ao `endTime` | _[a preencher]_ | _[a preencher]_ | _[a preencher]_ |
-| Evento em aberto | `endTime: null` | _[a preencher]_ | _[a preencher]_ | _[a preencher]_ |
-| Eventos sobrepostos | Períodos diferentes (não cópia exata) que se cruzam para a mesma máquina | _[a preencher]_ | _[a preencher]_ | _[a preencher]_ |
+| Evento duplicado | Mesmo `id`, payload idêntico repetido no dataset | 3 | Remover duplicatas | Preserva apenas unicidade/veracidade dos dados |
+| Máquina fantasma | `machineCode` do evento não existe no cadastro de máquinas | 6 | Descarte dos eventos vinculados ao código inexistente | Máquina que não existe no cadastro não pode gerar evento válido no sistema |
+| Horário invertido | `startTime` posterior ao `endTime` | 1 | Troco `startTime` e `endTime` de lugar (mantenho o evento) | Os dois valores são plausíveis e a duração resultante fica dentro do padrão dos demais eventos — o mais provável é os campos terem vindo trocados de posição, não um dado corrompido. Trocar recupera a informação sem inventar nada, já que os dois valores vieram da própria fonte** |
+| Evento em aberto | `endTime: null` | 3 | Mantenho o campo `endTime` como nulo no banco, sem inventar um valor | Apesar de incompleto, ainda é um dado que pode ter sua veracidade verificada pelo usuário* |
+| Eventos sobrepostos | Períodos diferentes (não cópia exata) que se cruzam para a mesma máquina | 1 cluster (7 eventos) | Remover o cluster inteiro | Mesmo quando o primeiro e o terceiro evento não se cruzam diretamente, ambos se conectam através do segundo, que sobrepõe os dois — isso torna o conjunto inteiro pouco confiável, então excluo todos, não só os que se tocam diretamente |
 
+Obs 1 (*): No caso do `endTime: null`, a decisão depende de como o usuário utiliza o painel, pois ele pode
+confirmar se aquela máquina estava mesmo funcionando ou não e assim tomar novas decisões, tendo melhor
+controle. Porém, um aumento nos casos pode se tornar moroso, com o usuário tendo que ficar editando e
+checando manualmente. Por isso deixo essa decisão em aberto para discussão e sigo com a decisão atual
+apenas para atender este teste, devido à quantidade de dados e casos ser pequena.
+
+Obs 2 (**): A decisão de trocar os campos no horário invertido deveria ser revisada caso o número de casos
+cresça — vale investigar se realmente se trata sempre de uma simples inversão de campos, ou se em algum
+momento é um dado genuinamente corrompido. Se for esse o caso, trocar os valores preservaria uma
+informação errada, o que prejudicaria a veracidade de todo o conjunto — nessa situação, seria mais
+confiável não ter esse dado no banco do que mantê-lo com uma correção equivocada.
 
 ## Diferenciais implementados
 

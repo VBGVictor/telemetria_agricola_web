@@ -3,17 +3,25 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "scripts": {
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "db:seed": "prisma db seed",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@prisma/client": "^5.20.0"
+    "@prisma/client": "^5.20.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "prisma": "^5.20.0",
     "typescript": "^5.6.0",
-    "@types/node": "^20.16.0"
+    "@types/node": "^20.16.0",
+    "vitest": "^2.1.1",
+    "tsx": "^4.19.1"
   }
 }
