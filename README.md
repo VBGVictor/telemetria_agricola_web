@@ -13,7 +13,7 @@ avaliação em [`AVALIACAO.md`](AVALIACAO.md).
 - [x] Fase 1 — modelagem do banco de dados (Prisma)
 - [x] Fase 2 — seed com tratamento das imperfeições dos dados
 - [x] Fase 3 — cálculo de indicadores + testes
-- [ ] Fase 4 — API (rotas / serviços / repositórios)
+- [x] Fase 4 — API (rotas / serviços / repositórios)
 - [ ] Fase 5 — frontend (dashboard + tela de máquinas)
 - [ ] Fase 6 — polimento final e revisão de convenções
 - [ ] Diferencial — Docker Compose completo (API + web + banco)
@@ -24,6 +24,7 @@ avaliação em [`AVALIACAO.md`](AVALIACAO.md).
 - [Como rodar](#como-rodar)
 - [Arquitetura e decisões técnicas](#arquitetura-e-decisões-técnicas)
 - [Tratamento dos dados imperfeitos](#tratamento-dos-dados-imperfeitos)
+- [Endpoints da API](#endpoints-da-api)
 - [Diferenciais implementados](#diferenciais-implementados)
 - [Ideias de evolução futura](#ideias-de-evolução-futura)
 
@@ -64,6 +65,11 @@ e por quê).
 ```bash
 # 4. Testes — não precisa de banco rodando, é tudo isolado
 npm test
+```
+
+```bash
+# 5. API — sobe em http://localhost:3333
+npm run dev
 ```
 
 ## Arquitetura e decisões técnicas
@@ -114,6 +120,18 @@ npm test
   evento fechado da mesma máquina, isso não seria detectado. Conferido no dataset deste teste: não afeta
   nenhum resultado atual. Se precisasse fechar essa lacuna, a abordagem seria tratar o fim de um evento
   em aberto como o instante mais tarde conhecido, só para essa checagem específica.
+- **Três camadas (routes / services / repositories)**: rota só valida com Zod e formata resposta;
+  service tem a regra de negócio; repository é o único lugar que fala com o Prisma direto — é lá que
+  mora o filtro `deletedAt: null`, então nenhuma rota corre o risco de esquecê-lo.
+- **`/summary` com máquina excluída — modelo híbrido**: o indicador por período inclui uma máquina
+  excluída se ela teve evento dentro da janela pedida (é histórico, não muda depois); `GET /machines`
+  (a listagem "atual") continua excluindo. A implementação busca as máquinas ativas e, separadamente,
+  só as máquinas excluídas que aparecem nos eventos do período consultado.
+- **`DELETE` numa máquina já excluída devolve `404`**, não um novo sucesso — mantém consistente com
+  toda outra rota, que trata máquina excluída como "não encontrada".
+- **Erro customizado sem `class`**: como a convenção do projeto proíbe classe, o erro de "não
+  encontrado" é um `Error` comum marcado com uma propriedade (`isNotFoundError`), não uma classe
+  estendendo `Error`.
 - *(demais decisões de arquitetura serão documentadas aqui conforme cada fase avança)*
 
 ## Tratamento dos dados imperfeitos
@@ -143,9 +161,28 @@ momento é um dado genuinamente corrompido. Se for esse o caso, trocar os valore
 informação errada, o que prejudicaria a veracidade de todo o conjunto — nessa situação, seria mais
 confiável não ter esse dado no banco do que mantê-lo com uma correção equivocada.
 
+## Endpoints da API
+
+API roda em `http://localhost:3333` (`npm run dev` dentro de `backend/`).
+
+| Método | Rota | Descrição |
+| --- | --- | --- |
+| `GET` | `/machines` | Lista máquinas ativas — busca por nome/código (`?search=`), filtro por tipo (`?type=`) |
+| `POST` | `/machines` | Cria máquina — validação Zod, `400` com mensagem se inválido |
+| `PUT` | `/machines/:id` | Edita máquina — mesma validação |
+| `DELETE` | `/machines/:id` | Soft-delete — `204`; chamar de novo no mesmo id devolve `404` |
+| `GET` | `/machines/:id/events` | Eventos da máquina — filtro `?from=&to=`, paginação `?page=&limit=` |
+| `GET` | `/summary` | Indicadores por máquina — `?from=&to=` opcionais (padrão: semana toda do desafio) |
+
 ## Diferenciais implementados
 
-_(a preencher conforme o que sobrar de tempo)_
+- **Cache em memória do `/summary`, com degradação graciosa**: o resultado calculado fica guardado por
+  60 segundos, indexado pelo período pedido (`from`+`to`). Se o cache falhar por qualquer motivo, o
+  código simplesmente recalcula do banco — o cache nunca é um ponto único de falha. Testado ao vivo:
+  primeira chamada ~90ms (calcula tudo), chamadas seguintes no mesmo período ~3-12ms.
+  - *Trade-off assumido*: como o TTL é de 60s, uma edição de máquina feita durante essa janela pode não
+    aparecer imediatamente no `/summary` — aceitável pro tamanho deste teste, mas seria ajustado
+    (TTL menor, ou invalidação ativa no `POST`/`PUT`/`DELETE`) numa frota de produção.
 
 ## Ideias de evolução futura
 

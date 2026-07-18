@@ -1,25 +1,12 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { PrismaClient, type EventGroup, type MachineType } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { cleanEvents, type ImportReport } from "../src/data-cleaning/clean-events";
+import { EVENT_GROUP_BY_RAW_GROUP, MACHINE_TYPE_BY_RAW_TYPE } from "../src/lib/enum-mappings";
 import { rawEventSchema, rawMachineSchema, type RawEvent, type RawMachine } from "../src/types/raw-data";
 
 const prisma = new PrismaClient();
-
-const MACHINE_TYPE_BY_RAW_TYPE: Record<RawMachine["type"], MachineType> = {
-  colhedora: "COLHEDORA",
-  trator: "TRATOR",
-  caminhao: "CAMINHAO",
-};
-
-const EVENT_GROUP_BY_RAW_GROUP: Record<RawEvent["eventGroup"], EventGroup> = {
-  Efetivo: "EFETIVO",
-  Manobra: "MANOBRA",
-  Deslocamento: "DESLOCAMENTO",
-  Aguardando: "AGUARDANDO",
-  "Manutenção": "MANUTENCAO",
-};
 
 function readRawMachines(): RawMachine[] {
   const filePath = resolve(import.meta.dirname, "../../data/machines.json");

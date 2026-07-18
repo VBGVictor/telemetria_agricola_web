@@ -1,5 +1,9 @@
 import type { CleanEvent } from "../data-cleaning/clean-events";
-import type { RawEvent, RawMachine } from "../types/raw-data";
+import type { RawEvent } from "../types/raw-data";
+
+// só o código é usado aqui — aceitar qualquer objeto com "code" evita acoplar
+// essa função ao formato completo de RawMachine (ela não precisa do resto)
+export type MachineForSummary = { code: string };
 
 type EventGroupValue = RawEvent["eventGroup"];
 
@@ -68,7 +72,7 @@ function sumMinutesByMachineAndGroup(
 
 export function computeMachineSummary(
   events: CleanEvent[],
-  machines: RawMachine[],
+  machines: MachineForSummary[],
   period: { from: string; to: string }
 ): MachineSummary[] {
   const from = new Date(period.from);
