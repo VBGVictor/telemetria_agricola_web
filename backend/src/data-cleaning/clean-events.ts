@@ -78,6 +78,8 @@ function removeOverlapClusters(events: RawEvent[]): {
   let clusters = 0;
 
   for (const eventosDaMaquina of eventosPorMaquina.values()) {
+    // eventos em aberto ficam de fora daqui: não dá pra comparar sobreposição
+    // contra um evento que ainda não tem fim definido
     const comFim = eventosDaMaquina.filter((event) => event.endTime !== null);
     const ordenados = [...comFim].sort(
       (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()

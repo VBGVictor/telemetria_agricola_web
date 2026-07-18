@@ -12,7 +12,7 @@ avaliação em [`AVALIACAO.md`](AVALIACAO.md).
 - [x] Fase 0 — repositório configurado, documentação inicial
 - [x] Fase 1 — modelagem do banco de dados (Prisma)
 - [x] Fase 2 — seed com tratamento das imperfeições dos dados
-- [ ] Fase 3 — cálculo de indicadores + testes
+- [x] Fase 3 — cálculo de indicadores + testes
 - [ ] Fase 4 — API (rotas / serviços / repositórios)
 - [ ] Fase 5 — frontend (dashboard + tela de máquinas)
 - [ ] Fase 6 — polimento final e revisão de convenções
@@ -25,6 +25,7 @@ avaliação em [`AVALIACAO.md`](AVALIACAO.md).
 - [Arquitetura e decisões técnicas](#arquitetura-e-decisões-técnicas)
 - [Tratamento dos dados imperfeitos](#tratamento-dos-dados-imperfeitos)
 - [Diferenciais implementados](#diferenciais-implementados)
+- [Ideias de evolução futura](#ideias-de-evolução-futura)
 
 ## Stack
 
@@ -99,6 +100,20 @@ npm test
   arquivo vier num formato inesperado.
 - **Seed idempotente**: o script limpa (`deleteMany`) as tabelas antes de inserir de novo. Rodar o seed
   várias vezes sempre resulta no mesmo estado, sem duplicar nem acumular dado de execuções antigas.
+- **Corte (clip) de evento no período consultado**: todo evento tem sua duração calculada apenas na
+  fatia que cai dentro do `from`/`to` pedido — início efetivo é o maior entre o início real do evento e
+  o `from`; fim efetivo é o menor entre o fim real (ou o `to`, se o evento estiver em aberto) e o `to`.
+  Isso resolve o caso do evento em aberto e qualquer evento que cruze a borda do período, sem alterar o
+  dado guardado no banco.
+- **Regra de arredondamento**: cada grupo de evento é arredondado pra 2 casas primeiro; horas totais,
+  disponibilidade e eficiência são calculadas a partir desses valores já arredondados, nunca do bruto —
+  garante que a soma exibida sempre bate com a conta feita a partir dos números mostrados na tela.
+- **Limitação conhecida: sobreposição não é checada contra eventos em aberto**: a checagem de cluster de
+  sobreposição só compara eventos que já têm `endTime` definido — não é possível comparar intervalo
+  contra um evento que ainda não terminou. Se um evento em aberto realmente se sobrepusesse com um
+  evento fechado da mesma máquina, isso não seria detectado. Conferido no dataset deste teste: não afeta
+  nenhum resultado atual. Se precisasse fechar essa lacuna, a abordagem seria tratar o fim de um evento
+  em aberto como o instante mais tarde conhecido, só para essa checagem específica.
 - *(demais decisões de arquitetura serão documentadas aqui conforme cada fase avança)*
 
 ## Tratamento dos dados imperfeitos
@@ -131,3 +146,24 @@ confiável não ter esse dado no banco do que mantê-lo com uma correção equiv
 ## Diferenciais implementados
 
 _(a preencher conforme o que sobrar de tempo)_
+
+## Ideias de evolução futura
+
+Não implementadas neste teste (fora de escopo e do tempo disponível) — registradas aqui apenas 
+como o projeto poderia evoluir num cenário de produção:
+
+- **Checagem estatística de duração por tipo de máquina**: além dos 5 casos sujos já tratados, seria
+  possível monitorar a duração média dos eventos agrupada por tipo de máquina (colhedora/trator/caminhão)
+  ao longo do tempo, como uma camada extra de vigilância pra detectar outliers e investigar possíveis
+  inconsistências futuras nos dados — sem virar uma regra automática de exclusão (evitaria excluir um
+  evento real só por ser estatisticamente incomum).
+- **Normalização por área trabalhada**: se o sistema de produção tivesse o tamanho da área (hectares)
+  que cada máquina trabalhou em cada evento, essa duração poderia ser normalizada (ex: horas por
+  hectare), dando uma métrica mais padronizada pra julgar se a duração de um evento faz sentido. Essa
+  normalização funciona bem pra **colhedora e trator**, que processam uma área de fato — mas **não se
+  aplica a caminhão**, que transporta em vez de trabalhar uma área; pra esse tipo, a normalização mais
+  adequada seria por distância percorrida ou carga transportada, não por hectare.
+- **Limite de plausibilidade pra evento em aberto**: um evento em aberto há mais tempo que o plausível
+  (ex: várias horas sem fechar) poderia ser tratado como suspeito em vez de "ainda em andamento" — não
+  implementado aqui porque os 3 casos reais do dataset estão bem dentro do limite normal (31min a 2h15
+  até o corte dos dados).
