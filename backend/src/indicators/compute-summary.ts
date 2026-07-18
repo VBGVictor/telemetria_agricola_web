@@ -106,3 +106,50 @@ export function computeMachineSummary(
     };
   });
 }
+
+export type DaySummary = {
+  date: string;
+  hoursByGroup: Record<EventGroupValue, number>;
+  totalHours: number;
+};
+
+// horas por grupo, por dia, somando a frota inteira (não separado por máquina) —
+// é o que alimenta o gráfico "horas por grupo de evento ao longo dos dias"
+export function computeDailySummary(
+  events: CleanEvent[],
+  period: { from: string; to: string }
+): DaySummary[] {
+  const from = new Date(period.from);
+  const to = new Date(period.to);
+  const days: DaySummary[] = [];
+
+  let dayStart = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()));
+
+  while (dayStart < to) {
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    const effectiveStart = dayStart > from ? dayStart : from;
+    const effectiveEnd = dayEnd < to ? dayEnd : to;
+
+    const minutesByGroup = buildEmptyGroupTotals();
+    for (const event of events) {
+      const clipped = clipEventToPeriod(event, effectiveStart, effectiveEnd);
+      if (!clipped) continue;
+      const minutes = (clipped.end.getTime() - clipped.start.getTime()) / 60000;
+      minutesByGroup[event.eventGroup] += minutes;
+    }
+
+    const hoursByGroup = {} as Record<EventGroupValue, number>;
+    for (const group of EVENT_GROUPS) {
+      hoursByGroup[group] = roundTo(minutesByGroup[group] / 60, 2);
+    }
+    const totalHours = roundTo(
+      EVENT_GROUPS.reduce((sum, group) => sum + hoursByGroup[group], 0),
+      2
+    );
+
+    days.push({ date: dayStart.toISOString().slice(0, 10), hoursByGroup, totalHours });
+    dayStart = dayEnd;
+  }
+
+  return days;
+}

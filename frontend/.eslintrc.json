@@ -1,0 +1,12 @@
+{
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "error",
+    "no-restricted-syntax": [
+      "error",
+      { "selector": "ClassDeclaration", "message": "Convenção do projeto: sem classes, use funções e composição." },
+      { "selector": "ClassExpression", "message": "Convenção do projeto: sem classes, use funções e composição." }
+    ],
+    "no-console": "error"
+  }
+}

@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { ZodError } from "zod";
@@ -23,6 +24,12 @@ function errorHandler(error: unknown, _req: Request, res: Response, _next: NextF
 
   if (isNotFoundError(error)) {
     res.status(404).json({ error: error.message });
+    return;
+  }
+
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    const fields = (error.meta?.target as string[] | undefined)?.join(", ") ?? "campo";
+    res.status(400).json({ error: `Já existe um registro com esse valor em: ${fields}` });
     return;
   }
 

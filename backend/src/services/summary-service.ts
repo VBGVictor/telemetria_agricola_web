@@ -1,4 +1,10 @@
-import { computeMachineSummary, type MachineForSummary, type MachineSummary } from "../indicators/compute-summary";
+import {
+  computeDailySummary,
+  computeMachineSummary,
+  type DaySummary,
+  type MachineForSummary,
+  type MachineSummary,
+} from "../indicators/compute-summary";
 import type { CleanEvent } from "../data-cleaning/clean-events";
 import { RAW_GROUP_BY_EVENT_GROUP } from "../lib/enum-mappings";
 import { getCachedSummary, setCachedSummary } from "../lib/summary-cache";
@@ -11,6 +17,13 @@ const DEFAULT_PERIOD = {
   to: "2026-06-08T00:00:00.000Z",
 };
 
+function resolvePeriod(query: SummaryQuery): { from: string; to: string } {
+  return {
+    from: query.from ?? DEFAULT_PERIOD.from,
+    to: query.to ?? DEFAULT_PERIOD.to,
+  };
+}
+
 function toCleanEvent(event: EventWithMachineCode): CleanEvent {
   return {
     id: event.id,
@@ -22,12 +35,9 @@ function toCleanEvent(event: EventWithMachineCode): CleanEvent {
 }
 
 export async function getFleetSummary(query: SummaryQuery): Promise<MachineSummary[]> {
-  const period = {
-    from: query.from ?? DEFAULT_PERIOD.from,
-    to: query.to ?? DEFAULT_PERIOD.to,
-  };
+  const period = resolvePeriod(query);
 
-  const cacheKey = `${period.from}|${period.to}`;
+  const cacheKey = `machine|${period.from}|${period.to}`;
   const cached = getCachedSummary(cacheKey);
   if (cached) return cached;
 
@@ -55,4 +65,16 @@ export async function getFleetSummary(query: SummaryQuery): Promise<MachineSumma
   const summary = computeMachineSummary(cleanEvents, machines, period);
   setCachedSummary(cacheKey, summary);
   return summary;
+}
+
+export async function getDailySummary(query: SummaryQuery): Promise<DaySummary[]> {
+  const period = resolvePeriod(query);
+
+  const from = new Date(period.from);
+  const to = new Date(period.to);
+
+  const eventsInPeriod = await findEventsOverlappingPeriod(from, to);
+  const cleanEvents = eventsInPeriod.map(toCleanEvent);
+
+  return computeDailySummary(cleanEvents, period);
 }

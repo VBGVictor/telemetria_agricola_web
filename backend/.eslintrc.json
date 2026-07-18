@@ -1,0 +1,26 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
+  "env": {
+    "node": true,
+    "es2022": true
+  },
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+    "no-restricted-syntax": [
+      "error",
+      { "selector": "ClassDeclaration", "message": "Convenção do projeto: sem classes, use funções e composição." },
+      { "selector": "ClassExpression", "message": "Convenção do projeto: sem classes, use funções e composição." }
+    ],
+    "no-console": ["error", { "allow": ["error"] }]
+  },
+  "overrides": [
+    {
+      "files": ["prisma/seed.ts"],
+      "rules": { "no-console": "off" }
+    }
+  ]
+}

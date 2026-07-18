@@ -14,7 +14,7 @@ avaliação em [`AVALIACAO.md`](AVALIACAO.md).
 - [x] Fase 2 — seed com tratamento das imperfeições dos dados
 - [x] Fase 3 — cálculo de indicadores + testes
 - [x] Fase 4 — API (rotas / serviços / repositórios)
-- [ ] Fase 5 — frontend (dashboard + tela de máquinas)
+- [x] Fase 5 — frontend (dashboard + tela de máquinas)
 - [ ] Fase 6 — polimento final e revisão de convenções
 - [ ] Diferencial — Docker Compose completo (API + web + banco)
 
@@ -37,8 +37,6 @@ avaliação em [`AVALIACAO.md`](AVALIACAO.md).
 | Testes | Vitest |
 
 ## Como rodar
-
-> ⚠️ Seção em construção 
 
 ```bash
 # 1. Banco de dados
@@ -71,6 +69,17 @@ npm test
 # 5. API — sobe em http://localhost:3333
 npm run dev
 ```
+
+```bash
+# 6. Frontend — em outro terminal, na raiz do projeto
+cd frontend
+npm install
+cp .env.example .env.local
+npm run dev
+```
+
+Abre `http://localhost:3000` (redireciona pro dashboard). Precisa da API (passo 5) rodando ao mesmo
+tempo — o frontend consome ela via `NEXT_PUBLIC_API_URL`.
 
 ## Arquitetura e decisões técnicas
 
@@ -129,9 +138,45 @@ npm run dev
   só as máquinas excluídas que aparecem nos eventos do período consultado.
 - **`DELETE` numa máquina já excluída devolve `404`**, não um novo sucesso — mantém consistente com
   toda outra rota, que trata máquina excluída como "não encontrada".
+- **Pendência em aberto: `code` de máquina excluída não pode ser reaproveitado**. `Machine.code` é
+  `@unique` no banco, e essa trava não sabe nada sobre soft-delete — uma máquina excluída continua
+  "segurando" o código dela pra sempre, então tentar cadastrar uma máquina nova com o mesmo código de
+  uma já excluída falha (agora com `400` e mensagem clara, antes caía como `500` genérico — isso já
+  corrigi). A decisão de negócio (permitir reaproveitar o código depois que a máquina é excluída, ou
+  aposentar o código pra sempre) ainda não foi tomada — fica registrada aqui como algo a discutir,
+  não como bug pendente de resolver por conta própria.
 - **Erro customizado sem `class`**: como a convenção do projeto proíbe classe, o erro de "não
   encontrado" é um `Error` comum marcado com uma propriedade (`isNotFoundError`), não uma classe
   estendendo `Error`.
+- **`/summary/daily` — descoberto faltando já na Fase 5**: o `/summary` original só devolve total por
+  máquina no período inteiro; o gráfico do dashboard pede horas por dia. Adicionei
+  `computeDailySummary` reaproveitando os mesmos helpers de corte e arredondamento já testados, só
+  agrupando por dia (frota inteira) em vez de por máquina.
+- **shadcn/ui gerado para uma stack mais nova do que a pedida**: a CLI (`npx shadcn@latest`) instalou
+  componentes construídos em cima do `@base-ui/react` (biblioteca headless mais nova) e Tailwind v4,
+  em vez do Radix UI clássico que combina com Next 14/React 18/Tailwind v3 (a stack exigida). Isso
+  quebrou CSS (`border-border`, `outline-ring/50` não existiam), fontes (`Geist` via `next/font/google`
+  indisponível nessa versão do Next) e o próprio comportamento de diálogo/select (bugs intermitentes de
+  interação). Reescrevi `button`, `input`, `badge`, `dialog`, `select` usando Radix UI clássico
+  (`@radix-ui/react-dialog`, `@radix-ui/react-select` etc.) e troquei as variáveis de cor de `oklch()`
+  cru para o formato HSL clássico do shadcn v3, que suporta modificador de opacidade
+  (`bg-destructive/10`) do jeito que o Tailwind v3 espera. `card`, `table` e `skeleton` já eram HTML
+  puro e não precisaram de ajuste. Esse problema não foi identificado de imediato — o primeiro sinal
+  (a CLI não gerando o `form.tsx`) foi tratado como caso isolado, e só depois de várias outras quebras
+  (fonte, CSS, comportamento de modal) ficou claro que era a mesma causa raiz. Isso gerou um atraso
+  real na Fase 5 até identificar e corrigir a origem do problema, em vez de só os sintomas.
+- **Zod e `@hookform/resolvers` fixados na mesma major do backend**: a instalação padrão trouxe Zod v4
+  no frontend (API diferente da v3 que o backend usa) — fixei `zod@3.23.8` (igual ao backend) e
+  `@hookform/resolvers@3` (a versão compatível com Zod v3), pra validação de frontend e backend
+  realmente falarem a mesma língua, como o enunciado pede.
+- **Convenções (sem `any`, sem `class`, sem `console.log`) viram regra de ESLint**: alem da
+  revisão manual, foi realizado etapas que o código seguirá essas regras, elas estão em
+  `.eslintrc.json` (backend e frontend) como erros de lint reais — `@typescript-eslint/no-explicit-any`,
+  `no-restricted-syntax` bloqueando `class`/`class expression`, e `no-console`. Rodando `npm run lint`
+  (ou `npm run verify`, que também roda `typecheck` e os testes),
+  Única exceção: `prisma/seed.ts` tem `no-console` desligado via `overrides` no `.eslintrc.json` 
+  do backend, porque o relatório impresso no fim do seed é a saída intencional de uma ferramenta de 
+  linha de comando, não um `console.log` esquecido de debug.
 - *(demais decisões de arquitetura serão documentadas aqui conforme cada fase avança)*
 
 ## Tratamento dos dados imperfeitos
@@ -173,6 +218,7 @@ API roda em `http://localhost:3333` (`npm run dev` dentro de `backend/`).
 | `DELETE` | `/machines/:id` | Soft-delete — `204`; chamar de novo no mesmo id devolve `404` |
 | `GET` | `/machines/:id/events` | Eventos da máquina — filtro `?from=&to=`, paginação `?page=&limit=` |
 | `GET` | `/summary` | Indicadores por máquina — `?from=&to=` opcionais (padrão: semana toda do desafio) |
+| `GET` | `/summary/daily` | Horas por grupo de evento, por dia, frota inteira — alimenta o gráfico do dashboard |
 
 ## Diferenciais implementados
 
