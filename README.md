@@ -15,7 +15,7 @@ avaliação em [`AVALIACAO.md`](AVALIACAO.md).
 - [x] Fase 3 — cálculo de indicadores + testes
 - [x] Fase 4 — API (rotas / serviços / repositórios)
 - [x] Fase 5 — frontend (dashboard + tela de máquinas)
-- [ ] Fase 6 — polimento final e revisão de convenções
+- [x] Fase 6 — polimento final e revisão de convenções
 - [ ] Diferencial — Docker Compose completo (API + web + banco)
 
 ## Sumário
@@ -241,6 +241,11 @@ violada — qualquer pessoa confirma sozinha, sem precisar confiar em mim.
   cortado na borda. Reescrevi `card.tsx` no padrão clássico shadcn v3 (`p-6`, sem `overflow-hidden`),
   mesmo estilo dos outros componentes já corrigidos. Pra evitar que esse tipo de regressão silenciosa
   volte, também busquei (`grep -r "-(--"`) o resto do projeto por essa sintaxe — não achei mais nenhuma.
+- **`networkMode: "always"` no TanStack Query**: por padrão (`"online"`), o React Query pausa a
+  query (nem `isLoading` nem `isError` ficam `true`) quando acha que o navegador está sem rede, em vez
+  de deixar a chamada falhar e virar erro tratado. Pra uma queda de wifi real não deixar a tela travada
+  sem loading e sem mensagem, forcei `"always"` — toda falha de rede vira `isError` de verdade,
+  independente do que o navegador acha sobre o próprio status de conexão.
 - *(demais decisões de arquitetura serão documentadas aqui conforme cada fase avança)*
 
 ## Tratamento dos dados imperfeitos
