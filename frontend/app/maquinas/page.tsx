@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MachineFormDialog } from "@/components/machine-form-dialog";
 import { DeleteMachineDialog } from "@/components/delete-machine-dialog";
+import { MachineEventsDialog } from "@/components/machine-events-dialog";
 
 export default function MaquinasPage() {
   const [search, setSearch] = useState("");
@@ -21,6 +22,7 @@ export default function MaquinasPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
   const [deletingMachine, setDeletingMachine] = useState<Machine | null>(null);
+  const [viewingEventsMachine, setViewingEventsMachine] = useState<Machine | null>(null);
 
   const { data: machines, isLoading, isError, error } = useQuery({
     queryKey: ["machines", { search, type }],
@@ -116,6 +118,9 @@ export default function MaquinasPage() {
                       <TableCell>{machine.brand}</TableCell>
                       <TableCell className="text-right">{machine.year}</TableCell>
                       <TableCell className="text-right">
+                        <Button variant="ghost" size="sm" onClick={() => setViewingEventsMachine(machine)}>
+                          Eventos
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={() => openEdit(machine)}>
                           Editar
                         </Button>
@@ -142,6 +147,11 @@ export default function MaquinasPage() {
         open={deletingMachine !== null}
         onOpenChange={(open) => !open && setDeletingMachine(null)}
         machine={deletingMachine}
+      />
+      <MachineEventsDialog
+        open={viewingEventsMachine !== null}
+        onOpenChange={(open) => !open && setViewingEventsMachine(null)}
+        machine={viewingEventsMachine}
       />
     </div>
   );

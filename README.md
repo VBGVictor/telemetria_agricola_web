@@ -22,6 +22,7 @@ avaliação em [`AVALIACAO.md`](AVALIACAO.md).
 
 - [Stack](#stack)
 - [Como rodar](#como-rodar)
+- [Como verificar](#como-verificar)
 - [Arquitetura e decisões técnicas](#arquitetura-e-decisões-técnicas)
 - [Tratamento dos dados imperfeitos](#tratamento-dos-dados-imperfeitos)
 - [Endpoints da API](#endpoints-da-api)
@@ -37,6 +38,8 @@ avaliação em [`AVALIACAO.md`](AVALIACAO.md).
 | Testes | Vitest |
 
 ## Como rodar
+
+Pré-requisitos: **Node.js 20+**, **npm** e **Docker** (com Docker Compose) instalados e rodando.
 
 ```bash
 # 1. Banco de dados
@@ -80,6 +83,30 @@ npm run dev
 
 Abre `http://localhost:3000` (redireciona pro dashboard). Precisa da API (passo 5) rodando ao mesmo
 tempo — o frontend consome ela via `NEXT_PUBLIC_API_URL`.
+
+## Como verificar
+
+Duas frentes — uma mecânica (roda sozinha, não depende da minha palavra) e outra manual (testei ao
+vivo, registrada aqui e no histórico do projeto):
+
+**Mecânico** — dentro de `backend/` e de `frontend/`:
+
+```bash
+npm run verify
+```
+
+Roda `typecheck` (TypeScript, incluindo `noUnusedLocals`/`noUnusedParameters` pra pegar código morto) +
+`lint` (ESLint com `@typescript-eslint/no-explicit-any`, `no-restricted-syntax` bloqueando `class`, e
+`no-console`) + no backend também `test` (Vitest). Sai com erro se qualquer convenção do enunciado for
+violada — qualquer pessoa confirma sozinha, sem precisar confiar em mim.
+
+**Manual** — testado ao vivo durante o desenvolvimento:
+
+- CRUD completo de máquinas (criar, editar, excluir com confirmação), busca e filtro por tipo.
+- Dashboard: cards de resumo, gráfico por dia, tabela de indicadores.
+- API fora do ar: telas de Máquinas e Dashboard mostram erro tratado (sem tela branca, sem crash).
+- Conversão de fuso horário: horários dos eventos (tela "Eventos" na listagem de máquinas) exibidos em
+  America/Sao_Paulo, conferido contra o horário UTC cru devolvido pela API.
 
 ## Arquitetura e decisões técnicas
 
@@ -160,8 +187,9 @@ tempo — o frontend consome ela via `NEXT_PUBLIC_API_URL`.
   interação). Reescrevi `button`, `input`, `badge`, `dialog`, `select` usando Radix UI clássico
   (`@radix-ui/react-dialog`, `@radix-ui/react-select` etc.) e troquei as variáveis de cor de `oklch()`
   cru para o formato HSL clássico do shadcn v3, que suporta modificador de opacidade
-  (`bg-destructive/10`) do jeito que o Tailwind v3 espera. `card`, `table` e `skeleton` já eram HTML
-  puro e não precisaram de ajuste. Esse problema não foi identificado de imediato — o primeiro sinal
+  (`bg-destructive/10`) do jeito que o Tailwind v3 espera. `table` e `skeleton` já eram HTML puro e não
+  precisaram de ajuste — **`card` não**: passou despercebido na Fase 5 e só foi pego na Fase 6 (ver
+  item abaixo sobre o card "comendo" texto). Esse problema não foi identificado de imediato — o primeiro sinal
   (a CLI não gerando o `form.tsx`) foi tratado como caso isolado, e só depois de várias outras quebras
   (fonte, CSS, comportamento de modal) ficou claro que era a mesma causa raiz. Isso gerou um atraso
   real na Fase 5 até identificar e corrigir a origem do problema, em vez de só os sintomas.
@@ -169,14 +197,50 @@ tempo — o frontend consome ela via `NEXT_PUBLIC_API_URL`.
   no frontend (API diferente da v3 que o backend usa) — fixei `zod@3.23.8` (igual ao backend) e
   `@hookform/resolvers@3` (a versão compatível com Zod v3), pra validação de frontend e backend
   realmente falarem a mesma língua, como o enunciado pede.
-- **Convenções (sem `any`, sem `class`, sem `console.log`) viram regra de ESLint**: alem da
-  revisão manual, foi realizado etapas que o código seguirá essas regras, elas estão em
-  `.eslintrc.json` (backend e frontend) como erros de lint reais — `@typescript-eslint/no-explicit-any`,
-  `no-restricted-syntax` bloqueando `class`/`class expression`, e `no-console`. Rodando `npm run lint`
-  (ou `npm run verify`, que também roda `typecheck` e os testes),
-  Única exceção: `prisma/seed.ts` tem `no-console` desligado via `overrides` no `.eslintrc.json` 
-  do backend, porque o relatório impresso no fim do seed é a saída intencional de uma ferramenta de 
-  linha de comando, não um `console.log` esquecido de debug.
+- **Convenções (sem `any`, sem `class`, sem `console.log`, sem código morto) viram regra de ferramenta,
+  não promessa**: em vez de só revisão manual, `.eslintrc.json` (backend e frontend) trava
+  `@typescript-eslint/no-explicit-any`, `no-restricted-syntax` (bloqueia `class`/`class expression`) e
+  `no-console` como erro de lint; `tsconfig.json` dos dois lados liga `noUnusedLocals` e
+  `noUnusedParameters` pra pegar variável/import morto no typecheck. `npm run verify` (`typecheck` +
+  `lint` + testes no backend) roda tudo de uma vez — ver [Como verificar](#como-verificar). Duas
+  exceções documentadas: `prisma/seed.ts` tem `no-console` desligado via `overrides` (o relatório
+  impresso no fim é saída intencional de uma ferramenta de linha de comando, não debug esquecido); o
+  middleware de erro em `app.ts` pode usar `console.error` (`no-console` permite só esse), porque sem
+  logar o erro 500 real ele fica invisível em produção — bem diferente de um `console.log` de debug.
+- **Bug real encontrado testando ao vivo: `GET /machines/:id/events` devolvia o enum cru do Prisma**
+  (`"EFETIVO"`, sem acento) em vez do valor de negócio (`"Efetivo"`). Era a mesma classe de bug já
+  corrigida pra `Machine.type` em `machine-service.ts`, só que faltou replicar em `event-service.ts`.
+  Corrigido com o mesmo padrão (`serializeEvent` traduzindo via `RAW_GROUP_BY_EVENT_GROUP`) — só foi
+  descoberto porque testei a tela de eventos no navegador, não por revisão de código.
+- **Fonte Geist carregada mas nunca conectada ao Tailwind**: `layout.tsx` carrega os arquivos da fonte
+  via `next/font/local` e define `--font-geist-sans`, mas `tailwind.config.ts` não tinha
+  `theme.fontFamily.sans` apontando pra essa variável — então a classe `font-sans` usava a stack
+  genérica padrão do Tailwind, não a Geist. O site inteiro renderizava com a fonte do sistema em vez da
+  fonte do design. Corrigido mapeando `fontFamily.sans`/`mono` pras variáveis CSS da fonte local.
+- **`.env.example` nunca foi commitado**: o `.gitignore` da raiz tinha `.env.*`, um padrão amplo demais
+  que também bloqueava `backend/.env.example` e `frontend/.env.example` — exatamente os arquivos que o
+  "Como rodar" manda copiar. Um clone novo do repositório quebraria nos passos 2 e 6. Troquei pro padrão
+  `.env` + `.env*.local` (o mesmo que o `create-next-app` já usa no `.gitignore` do frontend), que ignora
+  o arquivo real de segredo mas deixa o `.example` versionado.
+- **Tela "Eventos" por máquina, ligando `fetchMachineEvents`/`formatDateTime`**: até a Fase 5 essas duas
+  peças existiam no código mas não eram usadas em nenhuma tela — a conversão de fuso UTC→
+  America/Sao_Paulo, exigida pelo enunciado, não estava demonstrada na prática. Adicionei um botão
+  "Eventos" na listagem de máquinas que abre um modal paginado com o histórico da máquina, com
+  `startTime`/`endTime` formatados no fuso de exibição. Conferido contra o dado cru da API: evento com
+  `startTime` `03:00 UTC` aparece como `00:00` na tela (São Paulo é UTC-3) — a conversão é real, não só
+  código morto que "parece certo".
+- **Dependência morta removida**: `@base-ui/react` ficou no `package.json` do frontend depois que todos
+  os componentes foram reescritos pra Radix UI clássico (ver item do incidente shadcn/ui acima) — sem
+  nenhum uso restante no código (confirmado por busca no projeto inteiro). Removida via `npm uninstall`.
+- **`card.tsx` ficou pra trás no incidente shadcn/Tailwind v4** (mesma causa raiz do item acima), e só
+  foi descoberto na Fase 6 porque os cards do dashboard estavam "comendo" o texto (letras cortadas na
+  borda). Causa: a versão gerada usava sintaxe `px-(--card-spacing)`/`py-(--card-spacing)` — função de
+  variável CSS que só existe no Tailwind v4; no nosso Tailwind v3 essa classe não gera CSS nenhum,
+  silenciosamente. Resultado medido: `CardContent` com `padding: 24px 0px 0px` (zero nas laterais) e o
+  `Card` com `overflow: hidden` — qualquer texto mais largo que o card sem padding lateral ficava
+  cortado na borda. Reescrevi `card.tsx` no padrão clássico shadcn v3 (`p-6`, sem `overflow-hidden`),
+  mesmo estilo dos outros componentes já corrigidos. Pra evitar que esse tipo de regressão silenciosa
+  volte, também busquei (`grep -r "-(--"`) o resto do projeto por essa sintaxe — não achei mais nenhuma.
 - *(demais decisões de arquitetura serão documentadas aqui conforme cada fase avança)*
 
 ## Tratamento dos dados imperfeitos
