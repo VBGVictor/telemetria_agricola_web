@@ -4,8 +4,8 @@ Solução desenvolvida por **Victor Goveia** para o teste técnico de Desenvolve
 Analitica. O enunciado original do desafio está em [`DESAFIO.md`](DESAFIO.md) e os critérios de
 avaliação em [`AVALIACAO.md`](AVALIACAO.md).
 
-> Este README é construído em etapas, junto com o projeto — cada fase é commitada separadamente
-> e a seção "Status do projeto" abaixo reflete o que já está pronto a cada momento.
+> Este README foi construído em etapas, junto com o projeto — cada fase foi commitada separadamente
+> e a seção "Status do projeto" abaixo reflete como foi feito em cada momento.
 
 ## Status do projeto
 
@@ -107,6 +107,8 @@ violada — qualquer pessoa confirma sozinha, sem precisar confiar em mim.
 - API fora do ar: telas de Máquinas e Dashboard mostram erro tratado (sem tela branca, sem crash).
 - Conversão de fuso horário: horários dos eventos (tela "Eventos" na listagem de máquinas) exibidos em
   America/Sao_Paulo, conferido contra o horário UTC cru devolvido pela API.
+- Testado com clone limpo em pasta separada, do zero, duas vezes — corrigiu inclusive um bug real do
+  `.gitignore` que só apareceu nesse teste.
 
 ## Arquitetura e decisões técnicas
 
@@ -196,7 +198,8 @@ violada — qualquer pessoa confirma sozinha, sem precisar confiar em mim.
 - **Zod e `@hookform/resolvers` fixados na mesma major do backend**: a instalação padrão trouxe Zod v4
   no frontend (API diferente da v3 que o backend usa) — fixei `zod@3.23.8` (igual ao backend) e
   `@hookform/resolvers@3` (a versão compatível com Zod v3), pra validação de frontend e backend
-  realmente falarem a mesma língua, como o enunciado pede.
+  realmente falarem a mesma língua, como o enunciado pede (`frontend/schemas/machine-schema.ts` espelha
+  `backend/src/schemas/machine-schema.ts` regra por regra, sem monorepo pra compartilhar automaticamente).
 - **Convenções (sem `any`, sem `class`, sem `console.log`, sem código morto) viram regra de ferramenta,
   não promessa**: em vez de só revisão manual, `.eslintrc.json` (backend e frontend) trava
   `@typescript-eslint/no-explicit-any`, `no-restricted-syntax` (bloqueia `class`/`class expression`) e
@@ -255,6 +258,10 @@ telemetria de campo. A contagem abaixo vem do teste
 [`clean-events.test.ts`](backend/src/data-cleaning/clean-events.test.ts) — roda `npm test` dentro de
 `backend/` pra conferir.
 
+O cálculo dos indicadores em cima desses dados sujos (evento em aberto, arredondamento, etc.) tem
+cobertura à parte em [`compute-summary.test.ts`](backend/src/indicators/compute-summary.test.ts) —
+8 testes, incluindo os casos sujos que chegam até o `/summary`, não só a limpeza dos dados brutos.
+
 | Imperfeição | O que caracteriza | Quantas vezes apareceu | Decisão | Por quê |
 | --- | --- | --- | --- | --- |
 | Evento duplicado | Mesmo `id`, payload idêntico repetido no dataset | 3 | Remover duplicatas | Preserva apenas unicidade/veracidade dos dados |
@@ -304,6 +311,15 @@ API roda em `http://localhost:3333` (`npm run dev` dentro de `backend/`).
 Não implementadas neste teste (fora de escopo e do tempo disponível) — registradas aqui apenas 
 como o projeto poderia evoluir num cenário de produção:
 
+- **Docker Compose full-stack (API + web + banco) — não implementado por tempo**: a ideia seria um
+  `Dockerfile` multi-stage pra cada serviço (Node 20, mesma versão já usada), com o backend rodando
+  `prisma migrate deploy` (versão não-interativa do migrate, própria pra container) antes de subir a API,
+  e o frontend buildado com `output: 'standalone'` do Next 14. O ponto mais delicado seria o
+  `NEXT_PUBLIC_API_URL`: como esse valor é embutido no código do navegador já no momento do build (não
+  em tempo de execução), ele precisaria ser passado como `--build-arg` e apontar pra porta publicada no
+  host (`localhost:3333`), não pro nome interno do serviço na rede do Docker — um erro comum nesse tipo
+  de setup. Ficou de fora pra não arriscar o que já estava funcionando e testado faltando pouco tempo
+  pra entrega.
 - **Checagem estatística de duração por tipo de máquina**: além dos 5 casos sujos já tratados, seria
   possível monitorar a duração média dos eventos agrupada por tipo de máquina (colhedora/trator/caminhão)
   ao longo do tempo, como uma camada extra de vigilância pra detectar outliers e investigar possíveis
